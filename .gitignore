@@ -1,0 +1,12 @@
+.mcp.json
+.vscode
+.agents/
+.claude/
+.pi/
+.opencode/
+build-docs/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+opencode.json
+tui.json
