@@ -6,6 +6,11 @@
 -- Enable trigram extension for fuzzy cafe search
 create extension if not exists pg_trgm;
 
+-- pgcrypto is pre-installed on Supabase in the `extensions` schema. We rely
+-- on `extensions.gen_random_bytes()` below; keep the function call schema-
+-- qualified so it resolves regardless of the connection's search_path.
+create extension if not exists pgcrypto with schema extensions;
+
 --------------------------------------------------------------------------------
 -- profiles
 --------------------------------------------------------------------------------
@@ -25,7 +30,7 @@ create table public.groups (
   name text not null check (char_length(name) between 1 and 100),
   created_by uuid not null references public.profiles (id) on delete cascade,
   -- 16 random bytes = 128 bits of entropy. Hex-encoded for URL-safe, 32-char invite codes.
-  invite_code text not null unique default encode(gen_random_bytes(16), 'hex'),
+  invite_code text not null unique default encode(extensions.gen_random_bytes(16), 'hex'),
   created_at timestamptz not null default now()
 );
 
