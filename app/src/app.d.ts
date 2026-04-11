@@ -9,10 +9,12 @@ declare global {
 			supabase: SupabaseClient<Database>;
 			safeGetSession: () => Promise<{ session: Session | null; user: User | null }>;
 		}
-		interface PageData {
-			supabase: SupabaseClient<Database>;
-			session: Session | null;
-		}
+		// PageData is intentionally left empty -- SvelteKit infers the merged
+		// shape from `+layout.ts` (which provides `supabase` + `session`) and
+		// `+layout.server.ts` (which provides `session` + `cookies`). Declaring
+		// required fields here forces every child `+page.server.ts` load to
+		// re-return them, which is wrong.
+		interface PageData {}
 	}
 }
 

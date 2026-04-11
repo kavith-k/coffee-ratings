@@ -2,9 +2,20 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import type { Database } from './types';
 
+// Public URL + anon key go through Vite's `import.meta.env` (they are
+// intentionally browser-exposed). The SERVICE ROLE KEY must NOT -- anything
+// referenced via `import.meta.env.VITE_*` gets statically bundled into every
+// file that touches it, including client-bundled files, if a stray import
+// ever reached it. The key is loaded into `process.env` by
+// `integration-test-setup.ts` instead, which keeps it strictly Node-only.
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SERVICE_ROLE_KEY) {
+	throw new Error(
+		'SUPABASE_SERVICE_ROLE_KEY missing from process.env. Check that `.env.test` exists and that `integration-test-setup.ts` is wired into the integration project in vite.config.ts.'
+	);
+}
 
 // Admin client bypasses RLS
 const admin = createClient<Database>(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -568,5 +579,125 @@ describe('Schema constraints', () => {
 
 		// Cleanup
 		await admin.from('cafes').delete().eq('id', tempCafeId);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// RLS: DELETE on group_members (leave group / remove member via anon client)
+//
+// This block exists because of a real bug caught late: migration 002's
+// "Admin or self can remove" policy used an inline subquery on
+// public.group_members, which Postgres treats as infinite recursion at
+// evaluation time. Migration 004 fixes it by routing the admin check
+// through a security-definer helper (admin_group_ids()). The app's
+// /groups/[id] leaveGroup / removeMember form actions go through the anon
+// client, which evaluates the policy; the bug only surfaced in manual
+// smoke-testing. These tests exercise the exact path the app uses so the
+// recursion can never silently regress.
+// ---------------------------------------------------------------------------
+describe('RLS: group_members DELETE (leave / remove via anon client)', () => {
+	let adminUser: { id: string; client: SupabaseClient<Database> };
+	let memberUser: { id: string; client: SupabaseClient<Database> };
+	let otherMemberUser: { id: string; client: SupabaseClient<Database> };
+	let bystanderUser: { id: string; client: SupabaseClient<Database> };
+	let testGroupId: string;
+
+	beforeAll(async () => {
+		// Fresh users so we don't disturb alice/bob/charlie's state.
+		[adminUser, memberUser, otherMemberUser, bystanderUser] = await Promise.all([
+			createTestUser('delete-admin@test.local'),
+			createTestUser('delete-member@test.local'),
+			createTestUser('delete-other@test.local'),
+			createTestUser('delete-bystander@test.local')
+		]);
+
+		const { data: group } = await admin
+			.from('groups')
+			.insert({ name: 'Delete Test Group', created_by: adminUser.id })
+			.select()
+			.single();
+		testGroupId = group!.id;
+
+		await admin.from('group_members').insert([
+			{ group_id: testGroupId, user_id: adminUser.id, role: 'admin' },
+			{ group_id: testGroupId, user_id: memberUser.id, role: 'member' },
+			{ group_id: testGroupId, user_id: otherMemberUser.id, role: 'member' }
+		]);
+	}, 30000);
+
+	afterAll(async () => {
+		await admin.from('group_members').delete().eq('group_id', testGroupId);
+		await admin.from('groups').delete().eq('id', testGroupId);
+	}, 30000);
+
+	it('a non-admin member can leave the group (delete their own row)', async () => {
+		const { error, data } = await memberUser.client
+			.from('group_members')
+			.delete()
+			.match({ group_id: testGroupId, user_id: memberUser.id })
+			.select();
+
+		expect(error).toBeNull();
+		expect(data).toHaveLength(1);
+
+		const { data: stillThere } = await admin
+			.from('group_members')
+			.select()
+			.eq('group_id', testGroupId)
+			.eq('user_id', memberUser.id);
+		expect(stillThere).toHaveLength(0);
+	});
+
+	it('an admin can remove another member', async () => {
+		const { error, data } = await adminUser.client
+			.from('group_members')
+			.delete()
+			.match({ group_id: testGroupId, user_id: otherMemberUser.id })
+			.select();
+
+		expect(error).toBeNull();
+		expect(data).toHaveLength(1);
+	});
+
+	it('a bystander (not in the group) cannot remove anyone', async () => {
+		// Restore a fresh member to try deleting.
+		await admin
+			.from('group_members')
+			.insert({ group_id: testGroupId, user_id: memberUser.id, role: 'member' });
+
+		const { error, data } = await bystanderUser.client
+			.from('group_members')
+			.delete()
+			.match({ group_id: testGroupId, user_id: memberUser.id })
+			.select();
+
+		// RLS DELETE filters the row out; no error, but also no row deleted.
+		expect(error).toBeNull();
+		expect(data).toHaveLength(0);
+
+		const { data: stillThere } = await admin
+			.from('group_members')
+			.select()
+			.eq('group_id', testGroupId)
+			.eq('user_id', memberUser.id);
+		expect(stillThere).toHaveLength(1);
+	});
+
+	it('a non-admin member cannot remove another member', async () => {
+		// memberUser is a plain member; try to remove adminUser via member's client.
+		const { data } = await memberUser.client
+			.from('group_members')
+			.delete()
+			.match({ group_id: testGroupId, user_id: adminUser.id })
+			.select();
+
+		expect(data).toHaveLength(0);
+
+		const { data: stillThere } = await admin
+			.from('group_members')
+			.select()
+			.eq('group_id', testGroupId)
+			.eq('user_id', adminUser.id);
+		expect(stillThere).toHaveLength(1);
 	});
 });
