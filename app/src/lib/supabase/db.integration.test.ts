@@ -270,6 +270,88 @@ describe('RPC: get_personalised_cafe_list', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Regression: visible_user_ids() must include the caller themselves
+//
+// Bug: the original visible_user_ids() was a self-join on group_members
+// scoped to auth.uid(). For a user who hadn't joined any group, it returned
+// the empty set -- which meant the personalised RPCs (cafe list, cafe
+// average, activity feed) all excluded the user's own ratings. The user
+// could still SELECT their own ratings directly via the "View own ratings"
+// RLS policy, so /cafes/[id] would render a "Recent ratings" row for them
+// while the top stats card said "No ratings from your groups yet" on the
+// SAME cafe. Confusing and clearly wrong.
+//
+// Fix in migration 005: visible_user_ids() unions in auth.uid() so a caller
+// is always visible to themselves regardless of group membership.
+// ---------------------------------------------------------------------------
+describe('Regression: solo user sees their own ratings in personalised views', () => {
+	let soloUser: { id: string; client: SupabaseClient<Database> };
+	let soloCafeId: string;
+
+	beforeAll(async () => {
+		soloUser = await createTestUser('solo@test.local');
+
+		// A dedicated cafe so we do not have to reason about other seed or
+		// test data polluting the average.
+		const { data: cafe } = await admin
+			.from('cafes')
+			.insert({
+				name: 'Solo Test Cafe',
+				area: 'Solo Test Area',
+				lat: 53.35,
+				lng: -6.27,
+				created_by: soloUser.id
+			})
+			.select()
+			.single();
+		soloCafeId = cafe!.id;
+
+		// Solo user rates their own cafe -- they are NOT in any group.
+		await admin.from('ratings').insert({
+			user_id: soloUser.id,
+			cafe_id: soloCafeId,
+			rating: 6.0
+		});
+	}, 30000);
+
+	afterAll(async () => {
+		await admin.from('ratings').delete().eq('cafe_id', soloCafeId);
+		await admin.from('cafes').delete().eq('id', soloCafeId);
+	}, 30000);
+
+	it('get_cafe_personalised_average includes the caller own rating', async () => {
+		const { data, error } = await soloUser.client.rpc('get_cafe_personalised_average', {
+			p_cafe_id: soloCafeId
+		});
+		expect(error).toBeNull();
+		expect(data).toHaveLength(1);
+		expect(Number(data![0].avg_rating)).toBe(6.0);
+		expect(Number(data![0].num_ratings)).toBe(1);
+		expect(Number(data![0].num_raters)).toBe(1);
+	});
+
+	it('get_personalised_cafe_list includes the caller own rating in the average', async () => {
+		const { data, error } = await soloUser.client.rpc('get_personalised_cafe_list', {
+			p_area: 'Solo Test Area'
+		});
+		expect(error).toBeNull();
+		const cafe = data!.find((c) => c.cafe_id === soloCafeId);
+		expect(cafe).toBeDefined();
+		expect(Number(cafe!.avg_rating)).toBe(6.0);
+		expect(Number(cafe!.num_ratings)).toBe(1);
+	});
+
+	it('get_activity_feed includes the caller own rating', async () => {
+		const { data, error } = await soloUser.client.rpc('get_activity_feed');
+		expect(error).toBeNull();
+		const ownEntry = data!.find((r) => r.cafe_id === soloCafeId);
+		expect(ownEntry).toBeDefined();
+		expect(ownEntry!.user_id).toBe(soloUser.id);
+		expect(Number(ownEntry!.rating)).toBe(6.0);
+	});
+});
+
+// ---------------------------------------------------------------------------
 // RPC: search_cafes
 // ---------------------------------------------------------------------------
 describe('RPC: search_cafes', () => {
