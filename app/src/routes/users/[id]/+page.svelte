@@ -1,5 +1,6 @@
 <script lang="ts">
 	import RatingBadge from '$lib/components/RatingBadge.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 
 	let { data } = $props();
 </script>
@@ -13,9 +14,9 @@
 	</p>
 
 	{#if data.ratings.length === 0}
-		<p class="mt-6 rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-			No ratings yet.
-		</p>
+		<div class="mt-6">
+			<EmptyState message="No ratings yet." />
+		</div>
 	{:else}
 		<ul class="mt-6 grid gap-3">
 			{#each data.ratings as rating (rating.id)}

@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import RatingBadge from '$lib/components/RatingBadge.svelte';
 	import InfiniteScroll from '$lib/components/InfiniteScroll.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 
 	type FeedItem = {
 		rating_id: string;
@@ -50,9 +51,10 @@
 	<h1 class="mb-6 text-2xl font-semibold">Activity</h1>
 
 	{#if items.length === 0}
-		<p class="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-			Nothing to show yet. Ratings from people in your groups will appear here.
-		</p>
+		<EmptyState
+			title="No activity yet"
+			message="Ratings from people in your groups will appear here."
+		/>
 	{:else}
 		<ul class="grid gap-3">
 			{#each items as item (item.rating_id)}

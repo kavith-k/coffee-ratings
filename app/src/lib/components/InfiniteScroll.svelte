@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Attachment } from 'svelte/attachments';
+	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 
 	// Sentinel-based infinite scroll. The parent renders its own list; we
 	// just watch a sentinel element at the bottom and invoke `loadMore` when
@@ -42,9 +43,18 @@
 </script>
 
 {#if hasMore}
-	<div {@attach observe} class="flex justify-center py-6" aria-hidden="true">
-		{#if loading}
-			<span class="text-sm text-muted-foreground">Loading…</span>
-		{/if}
-	</div>
+	<div {@attach observe} class="mt-3" aria-hidden="true"></div>
+	{#if loading}
+		<ul class="mt-3 grid gap-3" aria-busy="true" aria-live="polite">
+			{#each Array(3) as _, i (i)}
+				<li class="flex items-center gap-4 rounded-lg border p-3">
+					<Skeleton class="h-10 w-10 rounded-full" />
+					<div class="flex-1 space-y-2">
+						<Skeleton class="h-4 w-3/4" />
+						<Skeleton class="h-3 w-1/2" />
+					</div>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 {/if}

@@ -67,7 +67,7 @@
 				{/if}
 
 				<div class="flex gap-2">
-					<Button type="submit" class="flex-1">
+					<Button type="submit" class="h-11 flex-1 md:h-10">
 						{existingCafeId ? 'Open existing cafe' : 'Add cafe'}
 					</Button>
 					<Button type="button" variant="outline" href="/groups">Cancel</Button>

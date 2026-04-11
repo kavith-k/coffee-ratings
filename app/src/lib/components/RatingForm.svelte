@@ -64,5 +64,5 @@
 		<p class="text-sm text-green-600">Thanks, rating saved.</p>
 	{/if}
 
-	<Button type="submit" disabled={submitDisabled}>Save rating</Button>
+	<Button type="submit" class="h-11 md:h-10" disabled={submitDisabled}>Save rating</Button>
 </form>

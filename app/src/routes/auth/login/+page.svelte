@@ -52,7 +52,7 @@
 						bind:value={email}
 					/>
 				</div>
-				<Button type="submit" class="w-full" disabled={loading}>
+				<Button type="submit" class="h-11 w-full md:h-10" disabled={loading}>
 					{loading ? 'Sending...' : 'Send magic link'}
 				</Button>
 				{#if message}

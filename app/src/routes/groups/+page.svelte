@@ -1,11 +1,6 @@
 <script lang="ts">
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import {
-		Card,
-		CardContent,
-		CardHeader,
-		CardTitle
-	} from '$lib/components/ui/card/index.js';
 
 	let { data } = $props();
 </script>
@@ -17,18 +12,12 @@
 	</div>
 
 	{#if data.groups.length === 0}
-		<Card>
-			<CardHeader>
-				<CardTitle>No groups yet</CardTitle>
-			</CardHeader>
-			<CardContent class="text-muted-foreground">
-				<p class="mb-4">
-					Groups are how you share ratings with friends. Create one to get started, or ask a
-					friend to send you an invite link.
-				</p>
-				<Button href="/groups/new">Create your first group</Button>
-			</CardContent>
-		</Card>
+		<EmptyState
+			title="No groups yet"
+			message="Groups are how you share ratings with friends. Create one, or ask a friend to send you an invite link."
+			actionLabel="Create your first group"
+			actionHref="/groups/new"
+		/>
 	{:else}
 		<ul class="grid gap-3">
 			{#each data.groups as group (group.id)}

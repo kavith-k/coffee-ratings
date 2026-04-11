@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import CafeCard from '$lib/components/CafeCard.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 
 	let { data } = $props();
@@ -69,10 +70,12 @@
 	</div>
 
 	{#if data.cafes.length === 0}
-		<p class="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-			No cafes to show yet. <a href="/cafes/new" class="text-primary hover:underline">Add one</a>
-			to get started.
-		</p>
+		<EmptyState
+			title="No cafes yet"
+			message="Ratings from people in your groups will show here. Add a cafe to start rating it."
+			actionLabel="Add a cafe"
+			actionHref="/cafes/new"
+		/>
 	{:else}
 		<ul class="grid gap-3">
 			{#each data.cafes as cafe (cafe.cafe_id)}

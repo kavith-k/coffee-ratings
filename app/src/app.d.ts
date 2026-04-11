@@ -5,6 +5,10 @@ import type { Database } from '$lib/supabase/types';
 
 declare global {
 	namespace App {
+		interface Error {
+			message: string;
+			errorId?: string;
+		}
 		interface Locals {
 			supabase: SupabaseClient<Database>;
 			safeGetSession: () => Promise<{ session: Session | null; user: User | null }>;

@@ -39,7 +39,7 @@
 					<p class="text-sm text-destructive">{form.error}</p>
 				{/if}
 				<div class="flex gap-2">
-					<Button type="submit" class="flex-1">Create group</Button>
+					<Button type="submit" class="h-11 flex-1 md:h-10">Create group</Button>
 					<Button type="button" variant="outline" href="/groups">Cancel</Button>
 				</div>
 			</form>
