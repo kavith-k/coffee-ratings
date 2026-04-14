@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in to Coffee Ratings</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f4; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 420px; background-color: #ffffff; border-radius: 12px; overflow: hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 32px 16px; text-align: center;">
+              <span style="font-size: 28px;">&#9749;</span>
+              <h1 style="margin: 8px 0 0; font-size: 20px; font-weight: 600; color: #1c1917;">
+                Coffee Ratings
+              </h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 8px 32px 32px;">
+              <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.5; color: #44403c; text-align: center;">
+                Use this code to sign in:
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <div style="display: inline-block; padding: 16px 32px; background-color: #f5f5f4; border-radius: 8px; letter-spacing: 6px; font-size: 32px; font-weight: 700; color: #1c1917; font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;">
+                      {{ .Token }}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 24px 0 0; font-size: 13px; line-height: 1.5; color: #a8a29e; text-align: center;">
+                Or use this link to sign in directly:
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 12px;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; padding: 10px 24px; background-color: #1c1917; color: #ffffff; font-size: 14px; font-weight: 500; text-decoration: none; border-radius: 6px;">
+                      Sign in to Coffee Ratings
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 24px 0 0; font-size: 12px; line-height: 1.5; color: #a8a29e; text-align: center;">
+                This code expires in 60 minutes. If you didn't request this, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
