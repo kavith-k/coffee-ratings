@@ -55,6 +55,8 @@
 	},
 	"dependencies": {
 		"@supabase/ssr": "^0.10.2",
-		"@supabase/supabase-js": "^2.102.1"
+		"@supabase/supabase-js": "^2.102.1",
+		"@types/leaflet": "^1.9.21",
+		"leaflet": "^1.9.4"
 	}
 }

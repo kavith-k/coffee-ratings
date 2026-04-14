@@ -179,6 +179,20 @@ describe('/ (home) load', () => {
 		expect(areasChain.not).toHaveBeenCalledWith('area', 'is', null);
 	});
 
+	it('filters out unrated cafes (null avg_rating)', async () => {
+		const cafes = [
+			{ cafe_id: 'c1', cafe_name: 'Rated', avg_rating: 5.0 },
+			{ cafe_id: 'c2', cafe_name: 'Unrated', avg_rating: null }
+		];
+
+		const { event } = buildEvent({ rpcResult: { data: cafes, error: null } });
+
+		const result = (await load(event)) as unknown as { cafes: typeof cafes };
+
+		expect(result.cafes).toHaveLength(1);
+		expect(result.cafes[0].cafe_id).toBe('c1');
+	});
+
 	it('returns empty arrays when there is no data', async () => {
 		const { event } = buildEvent({
 			rpcResult: { data: null, error: null },

@@ -39,6 +39,14 @@ describe('isNavActive', () => {
 		expect(isNavActive('/feed/items', '/feed')).toBe(true);
 	});
 
+	it('marks the map tab active on /map', () => {
+		expect(isNavActive('/map', '/map')).toBe(true);
+	});
+
+	it('does not mark the map tab active on other routes', () => {
+		expect(isNavActive('/groups', '/map')).toBe(false);
+	});
+
 	it('marks a dynamic profile tab active on its exact pathname', () => {
 		expect(isNavActive('/users/me', '/users/me')).toBe(true);
 	});

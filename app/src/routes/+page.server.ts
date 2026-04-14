@@ -43,6 +43,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw cafeErr;
 	}
 
+	// Only show cafes that someone in the user's groups has actually rated.
+	// Unrated cafes are noise in a recommendations-first home page.
+	const ratedCafes = (cafeRows ?? []).filter(
+		(c: { avg_rating: number | null }) => c.avg_rating !== null
+	);
+
 	// Distinct area list for the filter dropdown. Cafes have no group-scoped
 	// RLS (see build-docs/03-rls-policies.md -- "Cafes are globally visible to
 	// all authenticated users") so this SELECT is safe to run as the caller.
@@ -64,7 +70,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	).sort();
 
 	return {
-		cafes: cafeRows ?? [],
+		cafes: ratedCafes,
 		areas,
 		activeArea,
 		activeSort
