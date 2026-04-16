@@ -20,11 +20,6 @@
 		const qs = params.toString();
 		goto(qs ? `/?${qs}` : '/', { keepFocus: true, noScroll: true });
 	}
-
-	function onAreaChange(e: Event) {
-		const target = e.currentTarget as HTMLSelectElement;
-		updateParams({ area: target.value || null });
-	}
 </script>
 
 <div class="mx-auto max-w-2xl px-4 py-6">
@@ -52,22 +47,8 @@
 			</div>
 		</div>
 	{:else}
-		<div class="mb-4 flex flex-wrap items-center gap-3">
-			<label class="flex items-center gap-2 text-sm">
-				<span class="text-muted-foreground">Area</span>
-				<select
-					class="rounded-md border bg-background px-2 py-1 text-sm"
-					value={data.activeArea ?? ''}
-					onchange={onAreaChange}
-				>
-					<option value="">All areas</option>
-					{#each data.areas as area (area)}
-						<option value={area}>{area}</option>
-					{/each}
-				</select>
-			</label>
-
-			<div class="ml-auto flex items-center gap-1" role="group" aria-label="Sort cafes by">
+		<div class="mb-4 flex flex-wrap items-center justify-end gap-3">
+			<div class="flex items-center gap-1" role="group" aria-label="Sort cafes by">
 				<Button
 					variant={data.activeSort === 'avg_rating' ? 'default' : 'outline'}
 					size="sm"

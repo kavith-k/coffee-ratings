@@ -126,7 +126,7 @@
 					</Button>
 					<div class="relative flex items-center justify-center">
 						<Separator class="absolute w-full" />
-						<span class="bg-card text-muted-foreground relative px-2 text-xs">or</span>
+						<span class="relative bg-card px-2 text-xs text-muted-foreground">or</span>
 					</div>
 					<Button variant="ghost" class="h-11 w-full md:h-10" onclick={handleBack}>
 						Use a different email

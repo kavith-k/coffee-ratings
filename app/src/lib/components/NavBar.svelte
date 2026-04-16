@@ -21,7 +21,7 @@
 
 <nav
 	aria-label="Primary"
-	class="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background md:static md:justify-start md:gap-1 md:border-t-0 md:border-b md:px-4 md:py-2"
+	class="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background pb-2 md:static md:justify-start md:gap-1 md:border-t-0 md:border-b md:px-4 md:py-2"
 >
 	{#each tabs as tab (tab.href)}
 		{@const active = isNavActive(page.url.pathname, tab.href)}

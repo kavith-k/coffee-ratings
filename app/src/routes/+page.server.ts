@@ -18,8 +18,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		redirect(303, '/auth/login?next=' + encodeURIComponent(url.pathname));
 	}
 
-	const rawArea = url.searchParams.get('area');
-	const activeArea = rawArea && rawArea.length > 0 ? rawArea : null;
 	const activeSort = parseSort(url.searchParams.get('sort'));
 
 	// get_personalised_cafe_list is `security definer` and scopes the average
@@ -29,10 +27,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const { data: cafeRows, error: cafeErr } = await locals.supabase.rpc(
 		'get_personalised_cafe_list',
 		{
-			// Generated types model optional RPC params as `T | undefined`;
-			// PostgREST treats an absent param as SQL NULL, which is the
-			// "no filter" case in the RPC.
-			p_area: activeArea ?? undefined,
 			p_sort_by: activeSort,
 			p_limit: 50,
 			p_offset: 0
@@ -49,30 +43,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		(c: { avg_rating: number | null }) => c.avg_rating !== null
 	);
 
-	// Distinct area list for the filter dropdown. Cafes have no group-scoped
-	// RLS (see build-docs/03-rls-policies.md -- "Cafes are globally visible to
-	// all authenticated users") so this SELECT is safe to run as the caller.
-	const { data: areaRows, error: areaErr } = await locals.supabase
-		.from('cafes')
-		.select('area')
-		.not('area', 'is', null);
-
-	if (areaErr) {
-		throw areaErr;
-	}
-
-	const areas = Array.from(
-		new Set(
-			((areaRows ?? []) as { area: string | null }[])
-				.map((r) => r.area)
-				.filter((a): a is string => !!a)
-		)
-	).sort();
-
 	return {
 		cafes: ratedCafes,
-		areas,
-		activeArea,
 		activeSort
 	};
 };
