@@ -1,5 +1,11 @@
-import { error, redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { error, fail, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+
+// Mirrors the `char_length(display_name) between 1 and 50` check constraint
+// on profiles (schema 001). Keeping the numeric literal in sync with the DB
+// is the whole point of duplicating it -- surface a friendly message before
+// the DB rejects the write with an opaque 23514 error.
+const MAX_DISPLAY_NAME_LENGTH = 50;
 
 type RatingRow = {
 	id: string;
@@ -51,4 +57,45 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	}));
 
 	return { profile, ratings };
+};
+
+export const actions: Actions = {
+	// Self-only. RLS policy "Update own profile" enforces `id = auth.uid()`.
+	// We still scope the UPDATE by the session user's id (not params.id) so
+	// the intent of this action is unambiguous even if the RLS policy ever
+	// widens in future.
+	updateDisplayName: async ({ locals, request, url }) => {
+		const { session, user } = await locals.safeGetSession();
+		if (!session || !user) {
+			redirect(303, '/auth/login?next=' + encodeURIComponent(url.pathname));
+		}
+
+		const form = await request.formData();
+		const rawName = String(form.get('display_name') ?? '');
+		const name = rawName.trim();
+
+		if (name.length === 0) {
+			return fail(400, { error: 'Please enter a display name.', displayName: rawName });
+		}
+		if (name.length > MAX_DISPLAY_NAME_LENGTH) {
+			return fail(400, {
+				error: `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or fewer.`,
+				displayName: rawName
+			});
+		}
+
+		const { error: updateErr } = await locals.supabase
+			.from('profiles')
+			.update({ display_name: name })
+			.eq('id', user.id);
+
+		if (updateErr) {
+			return fail(500, {
+				error: 'Could not update display name. Please try again.',
+				displayName: rawName
+			});
+		}
+
+		return { success: true };
+	}
 };

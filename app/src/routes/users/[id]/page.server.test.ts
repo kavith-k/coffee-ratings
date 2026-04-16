@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { load } from './+page.server';
+import { load, actions } from './+page.server';
 
 /**
  * /users/[id] profile page load.
@@ -187,5 +187,168 @@ describe('/users/[id] load', () => {
 		};
 		expect(result.ratings[0].cafe_id).toBeNull();
 		expect(result.ratings[0].cafe_name).toBe('Unknown cafe');
+	});
+});
+
+/**
+ * /users/[id] updateDisplayName action.
+ *
+ * Bugs these tests catch:
+ *   - missing auth guard (only authenticated users can change their name)
+ *   - scoping the UPDATE by the URL param instead of the session user id
+ *     (would let anyone POST to /users/<other>?/updateDisplayName and -- if
+ *     the RLS policy ever widens -- edit someone else's profile)
+ *   - skipping length/empty validation and relying on the DB check constraint
+ *     alone (users would see an opaque 500 instead of a friendly message)
+ *   - not trimming whitespace (whitespace-only names would pass through)
+ *   - not returning the failing value back so the form can re-render it
+ */
+
+function buildActionEvent(opts: {
+	formData: Record<string, string>;
+	authenticated?: boolean;
+	userId?: string;
+	targetId?: string;
+	updateResult?: { error: unknown };
+}) {
+	const profilesChain: Record<string, unknown> = {};
+	profilesChain.update = vi.fn().mockReturnValue(profilesChain);
+	profilesChain.eq = vi.fn().mockResolvedValue(opts.updateResult ?? { error: null });
+
+	const fromMock = vi.fn((table: string) => {
+		if (table === 'profiles') return profilesChain;
+		throw new Error('unexpected table: ' + table);
+	});
+
+	const form = new Map<string, string>(Object.entries(opts.formData));
+	const request = {
+		formData: vi.fn().mockResolvedValue({
+			get: (key: string) => form.get(key) ?? null
+		})
+	};
+
+	const userId = opts.userId ?? 'me';
+	const targetId = opts.targetId ?? userId;
+
+	return {
+		event: {
+			locals: {
+				supabase: { from: fromMock } as never,
+				safeGetSession: vi.fn().mockResolvedValue(
+					opts.authenticated === false
+						? { session: null, user: null }
+						: {
+								session: { user: { id: userId } },
+								user: { id: userId }
+							}
+				)
+			},
+			request: request as never,
+			url: new URL('http://localhost:5173/users/' + targetId),
+			params: { id: targetId }
+		} as never,
+		profilesChain
+	};
+}
+
+describe('/users/[id] ?/updateDisplayName action', () => {
+	it("redirects unauth'd users to /auth/login?next=/users/me", async () => {
+		const { event } = buildActionEvent({
+			formData: { display_name: 'New Name' },
+			authenticated: false
+		});
+
+		await expect(actions.updateDisplayName(event)).rejects.toMatchObject({
+			status: 303,
+			location: '/auth/login?next=%2Fusers%2Fme'
+		});
+	});
+
+	it('rejects empty display_name', async () => {
+		const { event, profilesChain } = buildActionEvent({
+			formData: { display_name: '' }
+		});
+
+		const result = (await actions.updateDisplayName(event)) as {
+			status: number;
+			data: { error: string };
+		};
+
+		expect(result.status).toBe(400);
+		expect(result.data.error).toMatch(/name/i);
+		expect(profilesChain.update).not.toHaveBeenCalled();
+	});
+
+	it('rejects whitespace-only display_name (trims before validating)', async () => {
+		const { event, profilesChain } = buildActionEvent({
+			formData: { display_name: '   ' }
+		});
+
+		const result = (await actions.updateDisplayName(event)) as { status: number };
+
+		expect(result.status).toBe(400);
+		expect(profilesChain.update).not.toHaveBeenCalled();
+	});
+
+	it('rejects display_name longer than 50 chars (matches DB check constraint)', async () => {
+		const { event, profilesChain } = buildActionEvent({
+			formData: { display_name: 'x'.repeat(51) }
+		});
+
+		const result = (await actions.updateDisplayName(event)) as { status: number };
+
+		expect(result.status).toBe(400);
+		expect(profilesChain.update).not.toHaveBeenCalled();
+	});
+
+	it('trims the name before saving', async () => {
+		const { event, profilesChain } = buildActionEvent({
+			formData: { display_name: '  Alice  ' }
+		});
+
+		await actions.updateDisplayName(event);
+
+		expect(profilesChain.update).toHaveBeenCalledWith({ display_name: 'Alice' });
+	});
+
+	it("scopes the UPDATE by the session user's id, NOT the URL param", async () => {
+		// This is the existence-leak / privilege-escalation guard: if the
+		// action trusted params.id, a user could POST to another user's URL
+		// and update them. Even though RLS would block it today, we keep the
+		// action honest by passing user.id explicitly.
+		const { event, profilesChain } = buildActionEvent({
+			formData: { display_name: 'New Name' },
+			userId: 'me',
+			targetId: 'someone-else'
+		});
+
+		await actions.updateDisplayName(event);
+
+		expect(profilesChain.eq).toHaveBeenCalledWith('id', 'me');
+	});
+
+	it('returns success on a clean update', async () => {
+		const { event } = buildActionEvent({
+			formData: { display_name: 'Alice' }
+		});
+
+		const result = await actions.updateDisplayName(event);
+
+		expect(result).toMatchObject({ success: true });
+	});
+
+	it('returns fail(500) when the DB update errors', async () => {
+		const { event } = buildActionEvent({
+			formData: { display_name: 'Alice' },
+			updateResult: { error: { message: 'boom' } }
+		});
+
+		const result = (await actions.updateDisplayName(event)) as {
+			status: number;
+			data: { error: string };
+		};
+
+		expect(result.status).toBe(500);
+		expect(result.data.error).toBeTruthy();
 	});
 });
